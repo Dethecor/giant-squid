@@ -58,6 +58,6 @@ For the big correlation matrix it seems better to use HDF5 as well, so I will pu
 > Answer: Seems to work without trouble, they get stored as the bit-wise equivalent of the NA value used in R
 
 ```{r}
-prepareForCorrelationMatrix(file = "Data/cohort.h5", studyID = "Bacteriosins", rows = "Genes", columns = "Genera", rowChunk = 10e3, colChunk = 1000, compressionLevel = 9)
-correlateEntities(file = "Data/cohort.h5", studyID = "Bacteriosins", rows = "Genes", columns = "Genera", verbose = TRUE, nRows = 10e3, nCols = 1000)
+prepareForCorrelationMatrix(file = "Data/cohort.h5", studyID = "Bacteriosins", rows = "Genes", columns = "Genera", rowChunk = 50e3, colChunk = 1000, compressionLevel = 9)
+correlateEntities(file = "Data/cohort.h5", studyID = "Bacteriosins", rows = "Genes", columns = "Genera", verbose = TRUE, nRows = 50e3, nCols = 1000)
 ```
