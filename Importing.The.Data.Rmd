@@ -1,0 +1,63 @@
+---
+title: "Data Import"
+author: "Paul-Theodor Pyl"
+date: "3 Dec 2014"
+output: pdf_document
+---
+
+Creating the HDF5 file
+----------------------
+```{r}
+require(rhdf5)
+source("library.r")
+```
+Here we are setting up annotation data
+```{r, eval = FALSE}
+geneAnnotation <- read.table("Data/IGC.annotation_OF.summary.gz", sep = "\t", quote = "")
+save(geneAnnotation, file = "Data/geneAnnotation.RDa")
+bacteriaAnnotation <- read.table("Data/IGC.genus.normalization.ProfileTable.gz", sep = "\t", quote = "", header=TRUE )
+samples <- colnames(bacteriaAnnotation)[-1]
+bacteriaAnnotation <- data.frame("Name" = as.character(bacteriaAnnotation[,1]), stringsAsFactors = FALSE)
+save(bacteriaAnnotation, file = "Data/bacteriaAnnotation.RDa")
+sampleAnnotation <- data.frame("Name" = substr(as.character(samples), 2, 1e6), stringsAsFactors = FALSE)
+save(sampleAnnotation, file = "Data/sampleAnnotation.RDa")
+gAnnot <- data.frame("ID" = as.character(geneAnnotation[,1]), "Name" = as.character(geneAnnotation[,2]), stringsAsFactors = FALSE)
+save(gAnnot, file = "Data/gAnnot.RDa")
+```
+Loading the annotations
+```{r, eval = FALSE}
+load(file = "Data/bacteriaAnnotation.RDa")
+load(file = "Data/gAnnot.RDa")
+load(file = "Data/sampleAnnotation.RDa")
+```
+
+Preparing the HDF5 file
+```{r}
+createHDF5CohortFile(file = "Data/cohort.h5", studyID = "Bacteriosins", sampleAnnotation = sampleAnnotation, geneAnnotation = gAnnot, taxonAnnotation = bacteriaAnnotation, compressionLevel = 9 )
+```
+
+Writing the data
+```{r}
+writeAbundance(abundanceFile = "Data/IGC.genus.normalization.ProfileTable.gz", destination = "Data/cohort.h5", studyID = "Bacteriosins", type = "Relative", entity = "Genera")
+#test: that should be all 1
+colSums(fetchAbundance("Data/cohort.h5", "Bacteriosins", entity = "Genera", index = list(NULL,1:5)))
+writeAbundance(abundanceFile = "Data/1267sample.gene.relativeAbun.table.corrected.gz", destination = "Data/cohort.h5", studyID = "Bacteriosins", type = "Relative", entity = "Genes")
+#test: I guess this can be less than 1 if a certain percentage of genes were unidentified? or was it reads?
+colSums(fetchAbundance("Data/cohort.h5", "Bacteriosins", entity = "Genes", index = list(NULL,c(23,42))))
+```
+
+Correlations
+```{r}
+bacterialAbundances <- fetchAbundance("Data/cohort.h5", "Bacteriosins", entity = "Genera")
+```
+
+For the big correlation matrix it seems better to use HDF5 as well, so I will put it under "/Bacteriosins/Correlations/GenesGenera" and later on add "GenesSpecies" once we have that data. I will have to re-name the "Taxa" to "Genera" though and maybe re-create the file with this new layout.
+
+> ToDo: Check how HDF5 handles NA values?
+
+> Answer: Seems to work without trouble, they get stored as the bit-wise equivalent of the NA value used in R
+
+```{r}
+prepareForCorrelationMatrix(file = "Data/cohort.h5", studyID = "Bacteriosins", rows = "Genes", columns = "Genera", rowChunk = 10e3, colChunk = 1000, compressionLevel = 9)
+correlateEntities(file = "Data/cohort.h5", studyID = "Bacteriosins", rows = "Genes", columns = "Genera", verbose = TRUE, nRows = 10e3, nCols = 1000)
+```
