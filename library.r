@@ -101,6 +101,18 @@ correlateEntities <- function(file, studyID, type = "Relative", rows, columns, n
   }
 }
 
+fetchCorrelations <- function( file, studyID, rows, columns, index = list(NULL, NULL)){
+  corLoc <- paste(studyID, "Correlation", paste(rows, columns, sep = "_"), sep = "/")
+  ret <- h5read(file, corLoc, index)
+  if(nrow(ret) <= 1000){
+    rownames(ret) <- fetchNames(file = file, studyID = studyID, entity = rows, index = index[[1]])
+  }
+  if(ncol(ret) <= 1000){
+    colnames(ret) <- fetchNames(file = file, studyID = studyID, entity = columns, index = index[[2]])
+  }
+  return(ret)
+}
+
 fetchAnnotation <- function( file, studyID, entity = "Samples", index = list(NULL, NULL)){
   ret <- h5read(file, paste(studyID, "Annotation", entity, sep = "/"), index)
   attr <- h5readAttributes(file, paste(studyID, "Annotation", entity, sep = "/"))
@@ -190,6 +202,22 @@ nTaxa <- function(file, studyID){
 
 nEntities <- function(file, studyID, entity = "Samples"){
   return( fetchDimensions(file, location = paste(studyID, "Annotation", entity, sep = "/"))[1] )
+}
+
+happly <- function(file, location, blockSize, dim, FUN, ...){
+  targetDims <- fetchDimensions(file = file, location = location)
+  if(dim > length(targetDims)){
+    stop(paste("'dim' argument must map to one of the", length(targetDims), "dimensions of the target dataset."))
+  }
+  blockStarts <- seq(1, targetDims[dim], blockSize)
+  ret <- lapply(blockStarts, function(blockStart){
+    idx <- vector(mode="list", length=length(targetDims))
+    blockEnd <- min(blockStart + blockSize - 1, targetDims[dim])
+    idx[[dim]] <- blockStart:blockEnd
+    block <- h5read(file = file, name = location, index = idx)
+    FUN(block, index = idx, ...)
+  })
+  return(ret)
 }
 
 #apply a function for all combinations of subject and query
